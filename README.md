@@ -24,56 +24,12 @@ A **hub-and-spoke NAT architecture** using a dedicated Security VPC as a central
 
 Rather than eliminating the CIDR conflict at its source, the architecture inserts a controlled translation layer between the two address spaces. Each VPC is assigned a unique, non-overlapping **translated CIDR range**. A centralized **Sophos Next-Generation Firewall**, deployed in the Security VPC, performs bidirectional **Source NAT (SNAT) and Destination NAT (DNAT)** on all inter-VPC flows. An **AWS Transit Gateway** with a carefully configured appliance-mode attachment provides the routing fabric that steers all traffic through the firewall consistently and symmetrically.
 
-The result: full, routable, inspected, bidirectional connectivity between two VPCs with identical CIDRs — with zero changes to any existing workload, application, or IP address.
+The result: full, routable, inspected, bidirectional connectivity between two VPCs with identical CIDRs, with zero changes to any existing workload, application, or IP address.
 
 ---
 
 ## Architecture Overview
 <img width="921" height="812" alt="Image" src="https://github.com/user-attachments/assets/e6681796-00d1-48d3-99e5-db7f2665dd17" />
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                                                                             │
-│   Barcelona VPC (10.2.0.0/16)        Madrid VPC (10.2.0.0/16)             │
-│   Translated Range: 172.17.0.0/16    Translated Range: 172.16.0.0/16      │
-│                                                                             │
-│   ┌──────────────────┐               ┌──────────────────┐                  │
-│   │ Barcelona Server │               │   Madrid Server  │                  │
-│   │   10.2.1.67      │               │   10.2.1.157     │                  │
-│   └────────┬─────────┘               └────────┬─────────┘                  │
-│            │                                  │                             │
-│   ┌────────▼──────────┐             ┌─────────▼────────┐                  │
-│   │  Barcelona TGW    │             │    Madrid TGW    │                   │
-│   │   Attachment      │             │   Attachment     │                   │
-│   └────────┬──────────┘             └─────────┬────────┘                  │
-│            │                                  │                             │
-│            └──────────────┬───────────────────┘                            │
-│                           │                                                 │
-│                  ┌────────▼────────┐                                       │
-│                  │  Transit Gateway │                                       │
-│                  └────────┬────────┘                                       │
-│                           │                                                 │
-│                  ┌────────▼────────────────────────────────┐               │
-│                  │            Security VPC (192.168.0.0/16) │               │
-│                  │                                          │               │
-│                  │   ┌──────────────────────────────────┐  │               │
-│                  │   │        Sophos NGFW               │  │               │
-│                  │   │  LAN: 192.168.2.219 (Port A)     │  │               │
-│                  │   │  WAN: 192.168.4.214 (Port B)     │  │               │
-│                  │   │                                  │  │               │
-│                  │   │  NAT Rule 1: Barcelona → Madrid  │  │               │
-│                  │   │  SNAT: 10.2.1.67 → 172.17.1.67  │  │               │
-│                  │   │  DNAT: 172.16.1.157 → 10.2.1.157│  │               │
-│                  │   │                                  │  │               │
-│                  │   │  NAT Rule 2: Madrid → Barcelona  │  │               │
-│                  │   │  SNAT: 10.2.1.157 → 172.16.1.157│  │               │
-│                  │   │  DNAT: 172.17.1.67 → 10.2.1.67  │  │               │
-│                  │   └──────────────────────────────────┘  │               │
-│                  │   Security TGW Attachment: 192.168.2.181│               │
-│                  └─────────────────────────────────────────┘               │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
 
 **Traffic flow (Barcelona → Madrid):**
 
@@ -112,15 +68,15 @@ Barcelona Server (10.2.1.67)
 
 ## Five Non-Negotiable Configuration Requirements
 
-This architecture has five critical constraints. Miss any one of them and the deployment will silently fail — traffic will drop, route asymmetrically, or NAT incorrectly with no obvious error message.
+This architecture has five critical constraints. Miss any one of them and the deployment will silently fail, traffic will drop, route asymmetrically, or NAT incorrectly with no obvious error message.
 
 ### 1. Disable Source/Destination Check on the Firewall EC2 Instance
 
-By default, AWS drops any packet arriving at an EC2 instance where that instance is neither the source nor the destination. Since the Sophos firewall is forwarding transit traffic on behalf of other hosts — not terminating it — this check must be explicitly disabled. Without this, the firewall discards every packet it is supposed to translate.
+By default, AWS drops any packet arriving at an EC2 instance where that instance is neither the source nor the destination. Since the Sophos firewall is forwarding transit traffic on behalf of other hosts, not terminating it, this check must be explicitly disabled. Without this, the firewall discards every packet it is supposed to translate.
 
 ### 2. Firewall and Security TGW Attachment Must Share the Same Subnet
 
-The firewall's static routing table must point translated-range traffic toward the Transit Gateway attachment IP as its next-hop. This is only possible if the firewall and the Security TGW attachment are in the same subnet — making the attachment IP directly reachable at Layer 3 without an intermediate hop.
+The firewall's static routing table must point translated-range traffic toward the Transit Gateway attachment IP as its next-hop. This is only possible if the firewall and the Security TGW attachment are in the same subnet, making the attachment IP directly reachable at Layer 3 without an intermediate hop.
 
 ### 3. Configure the TGW Attachment IP as the Firewall's Gateway
 
@@ -128,11 +84,11 @@ The Security TGW attachment's ENI IP (`192.168.2.181`) must be registered as a g
 
 ### 4. Appliance Mode Must Be Enabled ONLY on the Security VPC Attachment
 
-AWS Transit Gateway uses flow-based routing across Availability Zones. Without appliance mode, a return flow from a spoke may be processed by a different AZ's TGW attachment than the outbound flow, bypassing the stateful firewall entirely and breaking NAT translation. Appliance mode must be enabled exclusively on the Security VPC attachment — enabling it on the spoke attachments will break the routing symmetry this architecture depends on.
+AWS Transit Gateway uses flow-based routing across Availability Zones. Without appliance mode, a return flow from a spoke may be processed by a different AZ's TGW attachment than the outbound flow, bypassing the stateful firewall entirely and breaking NAT translation. Appliance mode must be enabled exclusively on the Security VPC attachment, enabling it on the spoke attachments will break the routing symmetry this architecture depends on.
 
 ### 5. SNAT and DNAT Must Be Combined in a Single NAT Rule on Sophos XG
 
-Sophos XG Firewall evaluates NAT rules as a single match-and-apply operation per flow. If SNAT and DNAT are configured as separate rules, the firewall applies only one translation per packet, resulting in asymmetric addressing — the source is translated but the destination is not, or vice versa. Both translations must be defined in a single combined NAT rule for each direction of traffic.
+Sophos XG Firewall evaluates NAT rules as a single match-and-apply operation per flow. If SNAT and DNAT are configured as separate rules, the firewall applies only one translation per packet, resulting in asymmetric addressing, the source is translated but the destination is not, or vice versa. Both translations must be defined in a single combined NAT rule for each direction of traffic.
 
 ---
 
@@ -159,7 +115,7 @@ Applied to the Security TGW attachment. Routes translated and real IPs back to t
 
 ## Sophos Firewall NAT Rules
 
-Both rules combine SNAT and DNAT in a single policy entry — a requirement of the Sophos XG NAT processing model.
+Both rules combine SNAT and DNAT in a single policy entry, a requirement of the Sophos XG NAT processing model.
 
 | Rule | Pre-NAT Source | Pre-NAT Destination | Post-NAT Source | Post-NAT Destination |
 |---|---|---|---|---|
@@ -190,7 +146,7 @@ ubuntu@ip-10-2-1-157:~$ ping 172.17.1.67
 ...
 ```
 
-Firewall logs confirmed correct rule matching, NAT application, and bidirectional traffic inspection across both ICMP and TCP flows. Round-trip latency consistently sub-2ms — no measurable overhead introduced by the NAT layer.
+Firewall logs confirmed correct rule matching, NAT application, and bidirectional traffic inspection across both ICMP and TCP flows. Round-trip latency consistently sub-2ms, no measurable overhead introduced by the NAT layer.
 
 ---
 
@@ -207,7 +163,7 @@ This architecture was designed in response to a real organizational constraint: 
 | AWS PrivateLink | Service-specific, not suitable for general IP routing; doesn't solve the underlying routing problem |
 | Overlay network (Aviatrix, Cilium) | Additional vendor dependency and cost; overkill for this topology |
 
-The NAT hub architecture delivered the business outcome — a single centralized firewall serving all VPCs — without any of the migration risk or cost escalation of the alternatives.
+The NAT hub architecture delivered the business outcome — a single centralized firewall serving all VPCs, without any of the migration risk or cost escalation of the alternatives.
 
 ---
 
@@ -225,7 +181,7 @@ The NAT hub architecture delivered the business outcome — a single centralized
 
 ## Full Case Study
 
-A complete, professionally formatted technical case study document, including architecture diagrams, full configuration walkthrough, and implementation guide — is available in this repository. 
+A complete, professionally formatted technical case study document, including architecture diagrams, full configuration walkthrough, and implementation guide, is available in this repository. 
 
 [Full Documentation for this project](https://github.com/Idowu-Gbolahan/Resolving-Overlapping-CIDRs-in-AWS/blob/main/DOCUMENTATION%20FOR%20RESOLVING%20OVERLAPPING%20CIDRs%20IN%20AWS.pdf)
 
