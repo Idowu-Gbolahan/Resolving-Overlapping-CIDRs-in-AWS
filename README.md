@@ -1,20 +1,20 @@
 # Resolving Overlapping VPC CIDRs with AWS Transit Gateway & Sophos Firewall NAT
 
-> **A production-grade cloud network architecture that achieves full bidirectional inter-VPC routing between VPCs sharing identical CIDR blocks — without re-IPing a single workload, modifying a single application, or causing a single minute of downtime.**
+> **A production-grade cloud network architecture that achieves full bidirectional inter-VPC routing between VPCs sharing identical CIDR blocks, without re-IPing a single workload, modifying a single application, or causing a single minute of downtime.**
 
 ---
 
 ## The Problem
 
-In enterprise cloud environments, overlapping VPC CIDR blocks are one of the most common — and most consequential — networking problems that infrastructure engineers encounter. They arise from mergers and acquisitions, decentralized team cloud adoption, IaC template reuse, and the absence of centralized IP address governance.
+In enterprise cloud environments, overlapping VPC CIDR blocks are one of the most common, and most consequential, networking problems that infrastructure engineers encounter. They arise from mergers and acquisitions, decentralized team cloud adoption, IaC template reuse, and the absence of centralized IP address governance.
 
 When two VPCs share the same address space, AWS's native connectivity mechanisms break down completely:
 
 - **VPC Peering** rejects the connection outright
 - **Transit Gateway** cannot route between them when both advertise the same prefix
-- **Re-IPing** one side sounds simple but is, in practice, a months-long infrastructure migration project with significant blast radius — hardcoded IPs in application configs, DNS records, TLS certificates, security groups, IaC state files, and third-party allowlists all need to be found, audited, and updated atomically
+- **Re-IPing** one side sounds simple but is, in practice, a months-long infrastructure migration project with significant blast radius, hardcoded IPs in application configs, DNS records, TLS certificates, security groups, IaC state files, and third-party allowlists all need to be found, audited, and updated atomically
 
-This engagement presented exactly that challenge. Two AWS VPCs — provisioned independently across different accounts — both used `10.2.0.0/16`. A business requirement mandated secure, routed communication between workloads in both VPCs to support a centralized **Sophos Zero Trust Network Access (ZTNA)** deployment. Deploying a separate firewall instance in every VPC was technically feasible but cost-prohibitive. Something more elegant was needed.
+This engagement presented exactly that challenge. Two AWS VPCs — provisioned independently across different accounts, both used `10.2.0.0/16`. A business requirement mandated secure, routed communication between workloads in both VPCs to support a centralized **Sophos Zero Trust Network Access (ZTNA)** deployment. Deploying a separate firewall instance in every VPC was technically feasible but cost-prohibitive. Something more elegant was needed.
 
 ---
 
@@ -29,6 +29,7 @@ The result: full, routable, inspected, bidirectional connectivity between two VP
 ---
 
 ## Architecture Overview
+![Architecture overview](IMAGES FOR THE OVERLAPPING CIDRS PROJECT/OVERLAPPING CIDR ARCHITECTURE.png)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
