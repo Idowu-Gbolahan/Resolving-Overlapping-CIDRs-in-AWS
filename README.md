@@ -14,7 +14,7 @@ When two VPCs share the same address space, AWS's native connectivity mechanisms
 - **Transit Gateway** cannot route between them when both advertise the same prefix
 - **Re-IPing** one side sounds simple but is, in practice, a months-long infrastructure migration project with significant blast radius, hardcoded IPs in application configs, DNS records, TLS certificates, security groups, IaC state files, and third-party allowlists all need to be found, audited, and updated atomically
 
-This engagement presented exactly that challenge. Two AWS VPCs — provisioned independently across different accounts, both used `10.2.0.0/16`. A business requirement mandated secure, routed communication between workloads in both VPCs to support a centralized **Sophos Zero Trust Network Access (ZTNA)** deployment. Deploying a separate firewall instance in every VPC was technically feasible but cost-prohibitive. Something more elegant was needed.
+This engagement presented exactly that challenge. Two AWS VPCs, provisioned independently across different accounts, both used `10.2.0.0/16`. A business requirement mandated secure, routed communication between workloads in both VPCs to support a centralized **Sophos Zero Trust Network Access (ZTNA)** deployment. Deploying a separate firewall instance in every VPC was technically feasible but cost-prohibitive. Something more elegant was needed.
 
 ---
 
@@ -163,7 +163,7 @@ This architecture was designed in response to a real organizational constraint: 
 | AWS PrivateLink | Service-specific, not suitable for general IP routing; doesn't solve the underlying routing problem |
 | Overlay network (Aviatrix, Cilium) | Additional vendor dependency and cost; overkill for this topology |
 
-The NAT hub architecture delivered the business outcome — a single centralized firewall serving all VPCs, without any of the migration risk or cost escalation of the alternatives.
+The NAT hub architecture delivered the business outcome, a single centralized firewall serving all VPCs, without any of the migration risk or cost escalation of the alternatives.
 
 ---
 
