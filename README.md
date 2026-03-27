@@ -29,7 +29,7 @@ The result: full, routable, inspected, bidirectional connectivity between two VP
 ---
 
 ## Architecture Overview
-![Architecture overview](IMAGES FOR THE OVERLAPPING CIDRS PROJECT/OVERLAPPING CIDR ARCHITECTURE.png)
+<img width="921" height="812" alt="Image" src="https://github.com/user-attachments/assets/e6681796-00d1-48d3-99e5-db7f2665dd17" />
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
